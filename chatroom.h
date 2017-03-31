@@ -2,15 +2,20 @@
 #define CHATROOM_H_
 
 #include "codes.h"
-
+#include <vector>
 class Chatroom {
 public:
+  // Returns 1 if client is in chatroom, 0 if not and adds to chatroom
+  int CheckClient(char *recvmsg);
 	void Receive(char *recvmsg, int recvmsg_length);
-	void Distribute();
+	void Distribute(int pipefd[], int chatfd[]);
 private:
+  string temp_client_ID;
+  string temp_password;
 	char *msg;
+  char *readmsg;
 	int msg_length;
-  ClientInfo clients[100];
+  std::vector<ClientInfo> clients;
 };
 
 #endif // CHATROOM_H_
