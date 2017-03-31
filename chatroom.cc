@@ -27,10 +27,49 @@ int Chatroom::CheckClient(char *recvmsg) {
     ClientInfo newClient = {temp_client_ID, temp_password};
     clients.push_back(newClient);
     return 0;
+  }
 }
 
-void Chatroom::Receive(char *recvmsg, int recvmsg_length) {
-  msg = recvmsg;
+void Chatroom::DeleteClient(std::string client_ID) {
+  if(clients.size() != 0) {
+    for(std::vector<string>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
+      if( *iter == client_ID) {
+        clients.erase(iter);
+        return;
+      }
+    }
+  }
+}
+
+
+void Chatroom::ReturnList(int pipefd[]) {
+  char clist[10000] = '0x00 ';
+  for(std::vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
+    strcat(clist, (*(iter.client_ID) + " ").c_str());
+  }
+  write(pipefd[1], clist, 10000);
+}
+
+void Chatroom::Receive(char *recvmsg, int recvmsg_length, int pipefd[], int chatfd[]) {
+  strcpy(msg, recvmsg);
+  
+  string input(recvmsg);
+  stringstream ss(input);
+  vector<string> s;
+  string word;
+  while(getline(ss, word, ' ')) {
+    s.push_back(word);
+  }
+  if(*(s.begin()) == "MSG") {
+    Distribute(pipefd, chatfd);
+  }
+
+  else if(*(s.begin()) == "CLIST") {
+    ReturnList(pipefd);
+  }
+  else {
+    // unknown command
+  }
   msg_length = recvmsg_length;
 }
 
@@ -42,4 +81,3 @@ void Chatroom::Distribute(int pipefd[], int chatfd[]) {
     read(chatfd[0], readmsg, 256);
   }
 }
-

@@ -7,12 +7,14 @@
 #include <string>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <vector>
 
 using namespace std;
 
@@ -31,7 +33,7 @@ void Server::Setup(string file_name) {
     exit(EXIT_FAILURE);
   }
 
-  if(list(sockfd, 5) < 0) {
+  if(listen(sockfd, 5) < 0) {
     perror("ERROR on listening");
     exit(EXIT_FAILURE);
   }
@@ -59,12 +61,11 @@ int Server::Scan() {
     close(chatfd[1]);
     Chatroom chatroom;
 		while(1) {
-      //write(pipefd[1], "Connected to pipe successfully", 30);
-      read(chatfd[0], msg, 1000);
-      chatroom.CheckClient(msg);
-      read(chatfd[0], msg, 1000);
-      chatroom.Receive(msg, 1000);
-      chatroom.Distribute(pipefd, chatfd);
+      // write(pipefd[1], "Connected to pipe successfully", 30);
+      read(chatfd[0], inchatmsg, 1000);
+      chatroom.CheckClient(inchatmsg);
+      read(chatfd[0], inchatmsg, 1000);
+      chatroom.Receive(inchatmsg, 1000, pipefd, chatfd);
     }
     // how do I kill the chatroom process?
   }
@@ -96,23 +97,115 @@ int Server::Scan() {
 		  }
 		}
 	}
-  return void;
+  return 1;
 }
 
-void Server::*RequestChatroom(void *arg) {
-  
+// read from chatroom messages from other clients
+void* Server::RequestChatroom(void *arg) {
+
+  while(1) {
+    read(pipefd[0], readchatmsg, 1000);
+    write(newsockfd, readchatmsg, 1000);
+  }
+
 }
 
+
+// Returns 0 if login not possible!
 bool Server::Login(string client_ID, string password) {
-
+  file.SetFileName("accounts.dat");
+  file.OpenIn();
+  if(file.ReadFile(client_ID, password)) {
+    cout << "Login Successful" << endl; // make this some sort of wrtie to socket!
+    file.CloseFile();
+    return 1;
+  }
+  file.CloseFile();
+  return 0;
 }
 
+// Returns 0 if account is already registered!
 bool Server::Register(string client_ID, string password) {
-
+  file.SetFileName("accounts.dat");
+  file.OpenIn();
+  file.OpenOut();
+  if(file.CheckID(client_ID)) {
+    cout << "Account already exists!" << endl;
+    file.CloseFile();
+    return 0;
+  }
+  file.WriteFile(client_ID, password);
+  file.CloseFile();
+  return 1;
 }
 
+void Server::GetInitialRequest() {
+  char write_msg[512] = {'Please respond with one of the following choices:\n 1) LOGIN <client_ID, password>\n 2) REGISTER    <client_ID, password>\n 3) DISCONNECT\n\0'};
+  if((n = write(newsockfd, write_msg, 256)) < 0) {
+    perror("Couldn't write to socket");
+    return;
+  }
+  if((n = read(newsockfd, msg, 256)) < 0) {
+    perror("Couldn't read from socket");
+    return;
+  }
+  s.clear();
+  char *temp = strtok(msg, " ");
+  while(temp != NULL) {
+    s.push_back(string(temp));
+    temp = strtok(NULL, " ");
+  }
+}
+
+
+void Server::GetChatroomRequest() {
+  char write_msg[512] = {'Please respond with one of the following choices:\n 1) MSG <content>\n 2) CLIST\n 3) DISCONNECT\n\0'}
+  if((n = write(newsockfd, write_msg, 256)) < 0) {
+    perror("Couldn't write to socket");
+    return;
+  }
+  if((n = read(newsockfd, msg, 1000)) < 0) {
+    perror("Couldn't read from socket");
+    return;
+  }
+  s.clear();
+  char *temp = strtok(msg, " ");
+  while(temp != NULL) {
+    s.push_back(string(temp));
+    temp = strtok(NULL, " ");
+  }
+}
 
 void Server::DealWithClient() {
+
+
+  char login = 0;
+  char reg = 0;
+
+  while(!login && !reg) {
+    GetInitialRequest(); // get msg from client
+    // Login the user
+    if((*(s.begin()) == "LOGIN") && s.size() == 3) {
+      if(Login(*(s.begin()+1), *(s.begin()+2))) {
+        login = 1;
+        client.client_ID = *(s.begin()+1);
+        client.password = *(s.begin()+2);
+      }
+    }
+    // Register the user
+    if((*(s.begin()) == "REGISTER") && s.size() == 3) {
+      if(Register(*(s.begin()+1), *(s.begin()+2))) {
+        reg = 1;
+        client.client_ID = *(s.begin()+1);
+        client.password = *(s.begin()+2);
+      }
+    }
+    // make GetInitialRequest function!
+    if((*(s.begin()) == "DISCONNECT") && s.size() == 1) {
+      Disconnect();
+    }
+  }
+
   int error;
   pthread_t tid;
   if(error = pthread_create(&tid, NULL, RequestChatroom, NULL)) {
@@ -123,18 +216,28 @@ void Server::DealWithClient() {
     perror("ERROR on joining thread");
     return;
   }
-
-
-  char read_msg[256];
-  char write_msg[512] = {'Please respond with one of the following choices:\n 1) LOGIN <client_ID, password>\n 2) REGISTER <client_ID, password>\n 3) DISCONNECT\n\0'};
-  if((n = write(newsockfd, msg, 256)) < 0) {
-    perror("Couldn't write to socket");
-    return;
+  
+  while( ) {
+    GetChatroomRequest();
+    if(*(s.begin()) == "MSG") {
+      char temp[1000];
+      strcpy(temp, client.client_ID.c_str());
+      strcat(temp, client.password.c_str());
+      write(chatfd[1], temp, 1000);
+      write(chatfd[1], msg, 1000);
+    }
+    if(*(s.begin()) == "CLIST") {
+      char temp[1000];
+      strcpy(temp, client.client_ID.c_str());
+      strcat(temp, client.password.c_str());
+      write(chatfd[1], temp, 1000);
+      write(chatfd[1], msg, 1000); // request from chatroom a list of clients
+      read(pipefd[0], readmsg, 10000); // receive from chatroom a list of clients
+      write(newsocketfd, readmsg, 10000); // write to client
+    }
+    if(*(s.begin()) == "DISCONNECT") {
+      Disconnect();
+    }
+    
   }
-  if((n = read(newsockfd, msg, 256)) < 0) {
-    perror("Couldn't read from socket");
-    return;
-  }
-
-
 }

@@ -7,6 +7,7 @@ class Chatroom {
 public:
   // Returns 1 if client is in chatroom, 0 if not and adds to chatroom
   int CheckClient(char *recvmsg);
+  void DeleteClient(std::string client_ID);
 	void Receive(char *recvmsg, int recvmsg_length);
 	void Distribute(int pipefd[], int chatfd[]);
 private:

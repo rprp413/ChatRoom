@@ -4,15 +4,18 @@
 #include <string>
 #include "codes.h"
 #include "file.h"
+#include <vector>
 
 class Server {
 public:
-  void Setup(string file_name);
+  void Setup(std::string file_name);
   int Scan();
+  void GetInitialRequest(); // reads from client!
+  void GetChatroomRequest();
   void DealWithClient();
-  void *RequestChatroom(void *arg);
-  bool Login(string client_ID, string password);
-  bool Register(string client_ID, string password);
+  void *RequestChatroom(void *arg); // read from pipe for chatroom
+  bool Login(std::string client_ID, std::string password);
+  bool Register(std::string client_ID, std::string password);
   void Disconnect();
 private:
   int sockfd; // socket for scanning port
@@ -28,8 +31,12 @@ private:
   struct sockaddr_in server_addr;
   int numClients;
   int numThreads;
+  char *inchatmsg;
   char *msg;
-  File file; 
+  char *readchatmsg;
+  std::vector<string> s;
+  File file;
+  ClientInfo client;
 };
 
 #endif // SERVER_H_

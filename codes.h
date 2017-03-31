@@ -1,5 +1,7 @@
 #include <string>
 
+using std::string;
+
 struct Error {
 	char code;
 	string description;
