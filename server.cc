@@ -1,7 +1,4 @@
 #include "server.h"
-#include "file.h"
-#include "codes.h"
-#include "chatroom.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -10,15 +7,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <pthread.h>
+#include <thread>
 #include <vector>
+#include <pthread.h>
+
 
 using namespace std;
 
+Server::Server() {}
+
 void Server::Setup(string file_name) {
+  
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("ERROR opening socket");
     exit(EXIT_FAILURE);
@@ -37,8 +37,6 @@ void Server::Setup(string file_name) {
     perror("ERROR on listening");
     exit(EXIT_FAILURE);
   }
-
-  return void;
 }
 
 int Server::Scan() {
@@ -101,13 +99,13 @@ int Server::Scan() {
 }
 
 // read from chatroom messages from other clients
-void* Server::RequestChatroom(void *arg) {
+void* Server::RequestChatroom(int pipefds[], int chatfds[], int clientsocket, char *read_chat_msg) {
 
   while(1) {
-    read(pipefd[0], readchatmsg, 1000);
-    write(newsockfd, readchatmsg, 1000);
+    read(pipefds[0], read_chat_msg, 1000);
+    write(clientsocket, read_chat_msg, 1000);
   }
-
+  return NULL;
 }
 
 
@@ -140,7 +138,7 @@ bool Server::Register(string client_ID, string password) {
 }
 
 void Server::GetInitialRequest() {
-  char write_msg[512] = {'Please respond with one of the following choices:\n 1) LOGIN <client_ID, password>\n 2) REGISTER    <client_ID, password>\n 3) DISCONNECT\n\0'};
+  char write_msg[512] = "Please respond with one of the following choices:\n 1) LOGIN <client_ID, password>\n 2) REGISTER    <client_ID, password>\n 3) DISCONNECT\n\0";
   if((n = write(newsockfd, write_msg, 256)) < 0) {
     perror("Couldn't write to socket");
     return;
@@ -159,7 +157,7 @@ void Server::GetInitialRequest() {
 
 
 void Server::GetChatroomRequest() {
-  char write_msg[512] = {'Please respond with one of the following choices:\n 1) MSG <content>\n 2) CLIST\n 3) DISCONNECT\n\0'}
+  char write_msg[512] = "Please respond with one of the following choices:\n 1) MSG <content>\n 2) CLIST\n 3) DISCONNECT\n\0";
   if((n = write(newsockfd, write_msg, 256)) < 0) {
     perror("Couldn't write to socket");
     return;
@@ -175,6 +173,8 @@ void Server::GetChatroomRequest() {
     temp = strtok(NULL, " ");
   }
 }
+
+void Server::Disconnect() {}
 
 void Server::DealWithClient() {
 
@@ -206,6 +206,10 @@ void Server::DealWithClient() {
     }
   }
 
+
+  thread tid(Server::RequestChatroom, pipefd, chatfd, newsockfd, readchatmsg);
+  
+/*
   int error;
   pthread_t tid;
   if(error = pthread_create(&tid, NULL, RequestChatroom, NULL)) {
@@ -216,8 +220,8 @@ void Server::DealWithClient() {
     perror("ERROR on joining thread");
     return;
   }
-  
-  while( ) {
+  */
+  while(1) {
     GetChatroomRequest();
     if(*(s.begin()) == "MSG") {
       char temp[1000];
@@ -232,12 +236,16 @@ void Server::DealWithClient() {
       strcat(temp, client.password.c_str());
       write(chatfd[1], temp, 1000);
       write(chatfd[1], msg, 1000); // request from chatroom a list of clients
-      read(pipefd[0], readmsg, 10000); // receive from chatroom a list of clients
-      write(newsocketfd, readmsg, 10000); // write to client
+      read(pipefd[0], readchatmsg, 10000); // receive from chatroom a list of clients
+      write(newsockfd, readchatmsg, 10000); // write to client
     }
     if(*(s.begin()) == "DISCONNECT") {
       Disconnect();
     }
     
   }
+  if(tid.joinable()) {
+    tid.join();
+  }
+
 }

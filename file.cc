@@ -5,6 +5,8 @@
 
 using namespace std;
 
+File::File() {}
+
 File::File(string file_name) : fileName(file_name) {}
 
 void File::SetFileName(string file_name) {

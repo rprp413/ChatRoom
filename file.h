@@ -7,6 +7,7 @@
 
 class File {
 public:
+  File();
   File(std::string file_name);
   void SetFileName(std::string file_name);
   bool OpenIn(void);

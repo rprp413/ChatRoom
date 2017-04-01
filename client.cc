@@ -18,4 +18,14 @@
 
 using namespace std;
 
+Client::Client() {
 
+}
+
+void Client::Setup() {
+
+}
+
+void Client::Chat() {
+
+}
