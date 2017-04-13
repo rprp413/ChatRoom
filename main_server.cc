@@ -11,7 +11,7 @@
 using namespace std;
 
 #define MAXBUFFER 256
-#define PORT 1024
+#define PORT 1065
 
 struct arg_struct {
 	int pid;
@@ -25,6 +25,7 @@ void *process_handler(void *arg){
 	//int pid = *(int*)arg;
 	waitpid(args->pid, &status, 0);
 	close(args->sockfd);
+	cout << "Closing sockets!" << endl;
 	return arg;
 }
 
@@ -78,21 +79,27 @@ int main(int argc, char **argv) {
     if(pid == 0) { // child process dealing with client
       close(sockfd);
       cout << "Dealing with new client! " << num_sockfds << endl;
-	int x;
-	cin >> x; // suspends process for tty input
+			int x;
+			cin >> x; // suspends process for tty input
       exit(EXIT_SUCCESS);
     }
-    if(pid > 0) { // parent process
-	struct arg_struct args;
-	args.pid = pid;
-	args.sockfd = newsockfds[num_sockfds--];
-	pthread_create(&threads[num_thread], NULL, process_handler, &args);
-	cout << "Created thread, in parent " << num_sockfds << endl;
-      //waitpid(pid, &status, 0);
-	num_thread++; 
-	//cout << "Done waiting for child process!" << endl;
-      //close(newsockfd);
-    }
+  if(pid > 0) { // parent process
+		struct arg_struct args;
+		args.pid = pid;
+		args.sockfd = newsockfds[num_sockfds - 1];
+		pthread_create(&threads[num_thread], NULL, process_handler, &args);
+		cout << "Created thread, in parent " << num_sockfds << endl;
+		//waitpid(pid, &status, 0);
+		num_thread++; 
+		//cout << "Done waiting for child process!" << endl;
+		//close(newsockfd);
+   }
+		cout << "Enter for exit: ";
+		int exit_now = 0;
+		cin >> exit_now;
+		if(exit_now == 1) {
+			break;
+		}
   }
 	int i;
 	for(i = 0; i < num_thread; i++) {
