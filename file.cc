@@ -57,11 +57,11 @@ bool File::CheckID(string client_ID) {
 
 bool File::ReadFile(string client_ID, string password) { // AKA CheckPassword!
   string temp_client_ID, temp_password;
-
+	cout << "input is: " << client_ID << " " << password << endl;
   while(inFile >> temp_client_ID >> temp_password) {
-    cout << temp_client_ID << " " << temp_password << endl;
+    // cout << temp_client_ID << " " << temp_password << endl;
     if((temp_client_ID == client_ID) && (temp_password == password)) {
-      // cout << "Login Successful!" << endl;
+      cout << "Login Successful!" << endl;
       return 1;
     }
   }

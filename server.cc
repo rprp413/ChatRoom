@@ -143,12 +143,18 @@ void Server::GetInitialRequest() {
     perror("Couldn't write to socket");
     return;
   }
-  if((n = read(newsockfd, msg, 256)) < 0) {
-    perror("Couldn't read from socket");
+	counter++;
+	cout << counter << endl;
+	fprintf(stderr, "Sent initial request to socket\n");
+	char readclientmsg[512];
+  if((n = read(newsockfd, readclientmsg, 512)) < 0) {
+    perror("Couldn't read from socket in server");
+		cout << readclientmsg << endl;
     return;
   }
+	cout << "supposedly read stuff: " << readclientmsg << endl;
   s.clear();
-  char *temp = strtok(msg, " ");
+  char *temp = strtok(readclientmsg, " ");
   while(temp != NULL) {
     s.push_back(string(temp));
     temp = strtok(NULL, " ");
@@ -185,25 +191,44 @@ void Server::DealWithClient() {
   while(!login && !reg) {
     GetInitialRequest(); // get msg from client
     // Login the user
+		cout << *(s.begin()) << endl;
     if((*(s.begin()) == "LOGIN") && s.size() == 3) {
       if(Login(*(s.begin()+1), *(s.begin()+2))) {
         login = 1;
         client.client_ID = *(s.begin()+1);
         client.password = *(s.begin()+2);
+				cout << "Successfully Logged in existing user!" << endl;
+				int x;
+				cin >> x;
+				if((n = write(newsockfd, "0x00", 64)) < 0) {
+					perror("Couldn't confirm receival of command");
+					return;
+				}
       }
     }
     // Register the user
-    if((*(s.begin()) == "REGISTER") && s.size() == 3) {
+    else if((*(s.begin()) == "REGISTER") && s.size() == 3) {
       if(Register(*(s.begin()+1), *(s.begin()+2))) {
         reg = 1;
         client.client_ID = *(s.begin()+1);
         client.password = *(s.begin()+2);
+				cout << "Successfully Registered new user!" << endl;
+				if((n = write(newsockfd, "0x00", 64)) < 0) {
+					perror("Couldn't confirm receival of command");
+					return;
+				}
       }
     }
     // make GetInitialRequest function!
-    if((*(s.begin()) == "DISCONNECT") && s.size() == 1) {
+    else if((*(s.begin()) == "DISCONNECT") && s.size() == 1) {
       Disconnect();
     }
+		else {
+			if((n = write(newsockfd, "0xFF", 64)) < 0) {
+				perror("Couldn't confirm receival of command");
+				return;
+			}
+		}
   }
 
 

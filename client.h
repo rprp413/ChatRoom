@@ -17,6 +17,7 @@
 
 class Client {
 public:
+  Client();
   void Setup();
   void Chat();
 private:
@@ -25,6 +26,7 @@ private:
 	int n;
 	struct sockaddr_in server_addr;
 	struct hostent *server;
+  char *buffer;
 };
 
 #endif // CLIENT_H_

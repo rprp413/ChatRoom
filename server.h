@@ -38,11 +38,12 @@ private:
   int numClients;
   int numThreads;
   char *inchatmsg;
-  char *msg;
+  char msg[1000];
   char *readchatmsg;
   std::vector<string> s;
   File file;
   ClientInfo client;
+	int counter = 0;
 };
 
 #endif // SERVER_H_
