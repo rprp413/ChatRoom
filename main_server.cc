@@ -13,13 +13,22 @@ using namespace std;
 #define MAXBUFFER 256
 #define PORT 1024
 
+struct arg_struct {
+	int pid;
+	int sockfd;
+};
+
 void *process_handler(void *arg){
+	struct arg_struct *args = (struct arg_struct *) arg;
 	cout << "Thread Created" << endl;
 	int status;
-	int pid = *(int*)arg;
-	waitpid(pid, &status, 0);
+	//int pid = *(int*)arg;
+	waitpid(args->pid, &status, 0);
+	close(args->sockfd);
 	return arg;
 }
+
+
 
 int main(int argc, char **argv) {
   if(argc != 3) {
@@ -48,16 +57,19 @@ int main(int argc, char **argv) {
   }
 	pthread_t threads[100];
 	int num_thread = 0; 
+	int newsockfds[100];
+	int num_sockfds = 0;
  while(1) {
 		// accept is blocking, unless socket [sockfd] is marked as unblocking
 		// in which case you need to check for EAGAIN error code!
-	cout << "about to accept!" << endl;
-    if((newsockfd = accept(sockfd, 
+	cout << "about to accept! " << num_sockfds << endl;
+    if((newsockfds[num_sockfds] = accept(sockfd, 
         (struct sockaddr *) &client_addr, (socklen_t *) &client_length)) < 0) {
       perror("Fail on accept");
       exit(EXIT_FAILURE);
     }
-	cout << "accepted new client about to fork!" << endl;
+	num_sockfds++;
+	cout << "accepted new client about to fork! " << num_sockfds << endl;
     pid = fork();
     if(pid < 0) { // unsuccessful fork()
       perror("FAIL on fork");
@@ -65,14 +77,17 @@ int main(int argc, char **argv) {
     }
     if(pid == 0) { // child process dealing with client
       close(sockfd);
-      cout << "Dealing with new client!" << endl;
+      cout << "Dealing with new client! " << num_sockfds << endl;
 	int x;
 	cin >> x; // suspends process for tty input
       exit(EXIT_SUCCESS);
     }
-    else { // pid > 0, parent process
-	pthread_create(&threads[num_thread], NULL, process_handler, &pid);
-	cout << "Created thread, in parent" << endl;
+    if(pid > 0) { // parent process
+	struct arg_struct args;
+	args.pid = pid;
+	args.sockfd = newsockfds[num_sockfds--];
+	pthread_create(&threads[num_thread], NULL, process_handler, &args);
+	cout << "Created thread, in parent " << num_sockfds << endl;
       //waitpid(pid, &status, 0);
 	num_thread++; 
 	//cout << "Done waiting for child process!" << endl;
