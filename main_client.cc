@@ -36,6 +36,8 @@ int main(int argc, char **argv) {
     perror("Connect error");
     exit(EXIT_FAILURE);
   }
+  int x;
+  cin >> x;
   close(sockfd);
 
   return 0;

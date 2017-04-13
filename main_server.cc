@@ -7,10 +7,19 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <pthread.h>
 using namespace std;
 
 #define MAXBUFFER 256
 #define PORT 1024
+
+void *process_handler(void *arg){
+	cout << "Thread Created" << endl;
+	int status;
+	int pid = *(int*)arg;
+	waitpid(pid, &status, 0);
+	return arg;
+}
 
 int main(int argc, char **argv) {
   if(argc != 3) {
@@ -37,14 +46,18 @@ int main(int argc, char **argv) {
     perror("Listen error");
     exit(EXIT_FAILURE);
   }
-  while(1) {
+	pthread_t threads[100];
+	int num_thread = 0; 
+ while(1) {
 		// accept is blocking, unless socket [sockfd] is marked as unblocking
 		// in which case you need to check for EAGAIN error code!
+	cout << "about to accept!" << endl;
     if((newsockfd = accept(sockfd, 
         (struct sockaddr *) &client_addr, (socklen_t *) &client_length)) < 0) {
       perror("Fail on accept");
       exit(EXIT_FAILURE);
     }
+	cout << "accepted new client about to fork!" << endl;
     pid = fork();
     if(pid < 0) { // unsuccessful fork()
       perror("FAIL on fork");
@@ -53,12 +66,22 @@ int main(int argc, char **argv) {
     if(pid == 0) { // child process dealing with client
       close(sockfd);
       cout << "Dealing with new client!" << endl;
+	int x;
+	cin >> x; // suspends process for tty input
       exit(EXIT_SUCCESS);
     }
     else { // pid > 0, parent process
-      waitpid(pid, &status, 0); 
-      close(newsockfd);
+	pthread_create(&threads[num_thread], NULL, process_handler, &pid);
+	cout << "Created thread, in parent" << endl;
+      //waitpid(pid, &status, 0);
+	num_thread++; 
+	//cout << "Done waiting for child process!" << endl;
+      //close(newsockfd);
     }
   }
+	int i;
+	for(i = 0; i < num_thread; i++) {
+		pthread_join(threads[i], NULL);
+	}
   return 0;
 }
