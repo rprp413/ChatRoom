@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <vector>
 using namespace std;
 
 #define MAXBUFFER 256
@@ -56,19 +57,23 @@ int main(int argc, char **argv) {
     perror("Listen error");
     exit(EXIT_FAILURE);
   }
-	pthread_t threads[100];
+	vector<pthread_t> threads;
+	//pthread_t threads[100];
 	int num_thread = 0; 
-	int newsockfds[100];
+	vector<int> newsockfds;
+	//int newsockfds[100];
 	int num_sockfds = 0;
  while(1) {
 		// accept is blocking, unless socket [sockfd] is marked as unblocking
 		// in which case you need to check for EAGAIN error code!
 	cout << "about to accept! " << num_sockfds << endl;
-    if((newsockfds[num_sockfds] = accept(sockfd, 
+		int current_sock_fd;
+    if(( current_sock_fd = accept(sockfd, 
         (struct sockaddr *) &client_addr, (socklen_t *) &client_length)) < 0) {
       perror("Fail on accept");
       exit(EXIT_FAILURE);
     }
+	newsockfds.push_back(current_sock_fd);
 	num_sockfds++; 
 	cout << "accepted new client about to fork! " << num_sockfds << endl;
     pid = fork();
@@ -81,7 +86,7 @@ int main(int argc, char **argv) {
       cout << "Dealing with new client! " << num_sockfds << endl;
 			int x;
 			char read_client[16];
-			if((n = read(newsockfds[num_sockfds - 1], read_client, 16)) < 0) {
+			if((n = read(current_sock_fd, read_client, 16)) < 0) {
 				perror("Couldn't read from client");
 				exit(1);
 			}
@@ -90,15 +95,18 @@ int main(int argc, char **argv) {
       	exit(EXIT_SUCCESS);
 			}
 			else {
+				cout << "Incorrect input from client" << endl;
 				while(1) {}
 			}
     }
   if(pid > 0) { // parent process
 		struct arg_struct args;
 		args.pid = pid;
-		args.sockfd = newsockfds[num_sockfds - 1];
-		pthread_create(&threads[num_thread], NULL, process_handler, &args);
+		args.sockfd = current_sock_fd;
+		pthread_t thread;
+		pthread_create(&thread, NULL, process_handler, &args);
 		cout << "Created thread, in parent " << num_sockfds << endl;
+		threads.push_back(thread);
 		//waitpid(pid, &status, 0);
 		num_thread++; 
 		//cout << "Done waiting for child process!" << endl;
