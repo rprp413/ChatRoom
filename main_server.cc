@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
       perror("Fail on accept");
       exit(EXIT_FAILURE);
     }
-	num_sockfds++;
+	num_sockfds++; 
 	cout << "accepted new client about to fork! " << num_sockfds << endl;
     pid = fork();
     if(pid < 0) { // unsuccessful fork()
@@ -80,8 +80,18 @@ int main(int argc, char **argv) {
       close(sockfd);
       cout << "Dealing with new client! " << num_sockfds << endl;
 			int x;
-			cin >> x; // suspends process for tty input
-      exit(EXIT_SUCCESS);
+			char read_client[16];
+			if((n = read(newsockfds[num_sockfds - 1], read_client, 16)) < 0) {
+				perror("Couldn't read from client");
+				exit(1);
+			}
+			if(read_client[0] == '0') {
+				//cin >> x; // suspends process for tty input, don't do this!
+      	exit(EXIT_SUCCESS);
+			}
+			else {
+				while(1) {}
+			}
     }
   if(pid > 0) { // parent process
 		struct arg_struct args;
@@ -94,12 +104,6 @@ int main(int argc, char **argv) {
 		//cout << "Done waiting for child process!" << endl;
 		//close(newsockfd);
    }
-		cout << "Enter for exit: ";
-		int exit_now = 0;
-		cin >> exit_now;
-		if(exit_now == 1) {
-			break;
-		}
   }
 	int i;
 	for(i = 0; i < num_thread; i++) {

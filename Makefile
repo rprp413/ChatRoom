@@ -3,6 +3,14 @@ all: run_server
 CC = g++
 CFLAGS = -std=c++11
 
+main: main_server main_client
+
+main_server: main_server.cc
+	$(CC) $(CFLAGS) -o ser main_server.cc -lpthread
+
+main_client: main_client.cc
+	$(CC) $(CFLAGS) -o cli main_client.cc -lpthread
+
 run_server: chatroom.o server.o file.o run_server.cc
 	$(CC) $(CFLAGS) -pthread -o run_server run_server.cc server.o chatroom.o file.o
 

@@ -14,12 +14,12 @@ using namespace std;
 #define MAXBUFFER 256
 
 int main(int argc, char **argv) {
-  if(argc != 1) {
-    perror("Format should be: ./client");
+  if(argc != 2) {
+    perror("Format should be: ./client portnum");
     exit(EXIT_FAILURE);
   }
-  int sockfd, portno, n;
-  portno = 1065; // port numbers 0-1023 are reserved
+  int sockfd, portnum, n;
+  portnum = atoi(argv[1]); // port numbers 0-1023 are reserved
   struct sockaddr_in server_addr;
   struct hostent *server;
   char buffer[MAXBUFFER];
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(portno);
+  server_addr.sin_port = htons(portnum);
    
   server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
   
@@ -36,8 +36,12 @@ int main(int argc, char **argv) {
     perror("Connect error");
     exit(EXIT_FAILURE);
   }
-  int x;
-  cin >> x;
+  char entry[16];
+  fgets(entry, 16, stdin);
+	if((n = write(sockfd, entry, 16)) < 0) {
+		perror("Couldn't write kill!");
+		exit(1);
+	}
   close(sockfd);
 
   return 0;
