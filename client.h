@@ -28,7 +28,6 @@ private:
 	unsigned char error_code[1];
 	struct sockaddr_in server_addr;
 	struct hostent *server;
-  char *buffer;
 };
 
 #endif // CLIENT_H_

@@ -15,10 +15,10 @@ run_server: chatroom.o server.o file.o run_server.cc
 	$(CC) $(CFLAGS) -pthread -o run_server run_server.cc server.o chatroom.o file.o
 
 run_client: client.o run_client.cc
-	$(CC) $(CFLAGS) -o run_client run_client.cc client.o
+	$(CC) $(CFLAGS) -pthread -o run_client run_client.cc client.o 
 
 client.o: client.cc client.h
-	$(CC) $(CFLAGS) -c -o client.o client.cc
+	$(CC) $(CFLAGS) -pthread -c -o client.o client.cc 
 
 chatroom.o: chatroom.cc
 	$(CC) $(CFLAGS) -c -o chatroom.o chatroom.cc

@@ -121,18 +121,18 @@ void Client::Chat() {
 		perror("Re-attempting to create thread for message handling");
 	}
 
-	char write_buffer[1024];
+	char msg_buffer[1024];
 	pthread_mutex_t command_lock = PTHREAD_MUTEX_INITIALIZER;
 
 	while(1) {
 
 		
-		fgets(write_buffer, 512, stdin); // reads the line including
+		fgets(msg_buffer, 1024, stdin); // reads the line including
 
 	// Now get rid of ending new line character
-		size_t ln = strlen(write_buffer) - 1;
-		if( write_buffer[ln] == '\n') {
-			write_buffer[ln] = '\0';
+		size_t ln = strlen(msg_buffer) - 1;
+		if( msg_buffer[ln] == '\n') {
+			msg_buffer[ln] = '\0';
 		}
 
 // LOCK
@@ -141,11 +141,11 @@ void Client::Chat() {
 			continue;
 		}
 // WRITE
-		if((n = write(sockfd, write_buffer, 512)) < 0) {
+		if((n = write(sockfd, msg_buffer, 512)) < 0) {
 			perror("Couldn't write to socket");
 			return;
 		}
-		if(strncmp("DISCONNECT", write_buffer, 10) == 0) {
+		if(strncmp("DISCONNECT", msg_buffer, 10) == 0) {
 			// Disconnecting user, no error codes!
 			close(sockfd);
 			cout << "Closed socket" << endl;
@@ -159,7 +159,7 @@ void Client::Chat() {
 			}
 		}
 // UNLOCK		
-		if(error = pthread_mutex_unlock(&command_lock) {
+		if(error = pthread_mutex_unlock(&command_lock)) {
 			perror("Error unlocking mutex");
 			continue;
 		}

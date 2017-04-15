@@ -134,10 +134,10 @@ int Server::Scan() {
 
 // read from chatroom messages from other clients
 void* Server::RequestChatroom(int pipefds[], int chatfds[], int clientsocket, char *read_chat_msg) {
-
+	cout << "In thread!" << endl;
   while(1) {
-    read(pipefds[0], read_chat_msg, 1000);
-    write(clientsocket, read_chat_msg, 1000);
+    read(pipefds[0], read_chat_msg, 1024);
+    write(clientsocket, read_chat_msg, 1024);
   }
   return NULL;
 }
@@ -314,21 +314,29 @@ void Server::DealWithClient(int newsockfd) {
 	// pipefd[1] is write end of Client handler here, to which we write to from Scan function
 	// client_socket is member variable of Server, and is the client we are handling
 
+
+	// 
   while(1) {
 		GetFromClient();   
     if(*(s.begin()) == "MSG") {
-      char temp[1000];
+
+			// need to parse the message here somewhere
+
+
+      char temp[msg_size];
       strcpy(temp, client.client_ID.c_str());
       strcat(temp, client.password.c_str());
-      write(chatfd[1], temp, 1000);
-      write(chatfd[1], msg, 1000);
+      write(chatfd[1], temp, msg_size);
+      write(chatfd[1], msg, msg_size);
     }
     if(*(s.begin()) == "CLIST") {
-      char temp[1000];
+
+			//
+      char temp[chat_size];
       strcpy(temp, client.client_ID.c_str());
       strcat(temp, client.password.c_str());
-      write(chatfd[1], temp, 1000);
-      write(chatfd[1], msg, 1000); // request from chatroom a list of clients
+      write(chatfd[1], temp, chat_size);
+      write(chatfd[1], msg, chat_size); // request from chatroom a list of clients
       read(pipefd[0], readchatmsg, 10000); // receive from chatroom a list of clients
       write(client_socket, readchatmsg, 10000); // write to client
     }

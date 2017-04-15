@@ -46,7 +46,7 @@ private:
   File file;
   ClientInfo client;
 	size_t msg_size = 1024;
-	
+	size_t chat_size = 10240;
 };
 
 #endif // SERVER_H_
