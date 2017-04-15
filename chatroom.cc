@@ -13,28 +13,23 @@ using std::vector;
 using std::string;
 using std::stringstream;
 
-Chatroom::Chatroom() {}
+Chatroom::Chatroom() {
+}
 
-int Chatroom::CheckClient(char *recvmsg) {
-  if(clients.size() != 0) {
-    vector<string> s;
-    char *temp = strtok(recvmsg, " ");
-    while(temp != NULL) {
-      s.push_back(string(temp));
-      temp = strtok(NULL, " ");
-    }
-    temp_client_ID = *(s.begin());
-    temp_password = *(s.begin()+1);
-
-    for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
-      if((temp_client_ID == (*iter).client_ID) && (temp_password == (*iter).password)) {
-        return 1;
-      }
-    }
-    ClientInfo newClient = {temp_client_ID, temp_password};
-    clients.push_back(newClient);
-    return 0;
-  }
+int Chatroom::CheckClient(string client_ID, string password, int socket) {
+	std::cout << "Size of clients: " << std::endl;
+ if(clients.size() != 0) {
+		for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
+		  if((client_ID == (*iter).client_ID) && (password == (*iter).password)) {
+				std::cout << "Client already in chat!" << std::endl;
+		    return 1;
+		  }
+		}
+	}
+  ClientInfo newClient = {client_ID, password, socket};
+  clients.push_back(newClient);
+	std::cout << "Added client!" << std::endl;
+  return 0;
 }
 
 void Chatroom::DeleteClient(string client_ID) {
@@ -49,12 +44,12 @@ void Chatroom::DeleteClient(string client_ID) {
 }
 
 
-void Chatroom::ReturnList(int pipefd[]) {
-  char clist[10000] = {'0', 'x', '0', '0', ' '};
+void Chatroom::ReturnList(int client_socket, size_t chat_list_size) {
+  char clist[chat_list_size];
   for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
     strcat(clist, ((*iter).client_ID + " ").c_str());
   }
-  write(pipefd[1], clist, 10000);
+  write(client_socket, clist, chat_list_size);
 }
 
 void Chatroom::Receive(char *recvmsg, int recvmsg_length, int pipefd[], int chatfd[]) {
@@ -68,11 +63,11 @@ void Chatroom::Receive(char *recvmsg, int recvmsg_length, int pipefd[], int chat
     s.push_back(word);
   }
   if(*(s.begin()) == "MSG") {
-    Distribute(pipefd, chatfd);
+    //Distribute(pipefd, chatfd);
   }
 
   else if(*(s.begin()) == "CLIST") {
-    ReturnList(pipefd);
+   // ReturnList(pipefd);
   }
   else {
     // unknown command
@@ -82,9 +77,9 @@ void Chatroom::Receive(char *recvmsg, int recvmsg_length, int pipefd[], int chat
 
 
 
-void Chatroom::Distribute(int pipefd[], int chatfd[]) {
+void Chatroom::Distribute(const char sending_msg[], size_t msg_size) {
   for(int i = 0; i < clients.size(); i++) {
-    write(pipefd[1], msg, sizeof(msg));
-    read(chatfd[0], readmsg, 256);
+    write(clients[i].socket, sending_msg, msg_size);
+    //read(chatfd[0], readmsg, 256);
   }
 }

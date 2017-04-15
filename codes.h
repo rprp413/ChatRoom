@@ -15,6 +15,7 @@ struct Error {
 struct ClientInfo {
   string client_ID;
   string password;
+	int socket;
 };
 
 #endif // CODES_H_

@@ -54,6 +54,7 @@ void *ReadMSGHandler(void *args) {
 	// when main thread exits, the entire process ends and this thread also ends
 	pthread_mutex_t printer = PTHREAD_MUTEX_INITIALIZER;
 	while(1) {
+		cout << "Reading from server" << endl;		
 		if((bytes_read = read(temp_socket, read_buffer, 1024)) < 0) {
 			perror("Couldn't read message from Chatroom");
 		}
@@ -126,7 +127,12 @@ void Client::Chat() {
 
 	while(1) {
 
-		
+		// LOCK
+		if(error = pthread_mutex_lock(&command_lock)) {
+			perror("Error locking mutex");
+			continue;
+		}
+
 		fgets(msg_buffer, 1024, stdin); // reads the line including
 
 	// Now get rid of ending new line character
@@ -135,13 +141,9 @@ void Client::Chat() {
 			msg_buffer[ln] = '\0';
 		}
 
-// LOCK
-		if(error = pthread_mutex_lock(&command_lock)) {
-			perror("Error locking mutex");
-			continue;
-		}
+
 // WRITE
-		if((n = write(sockfd, msg_buffer, 512)) < 0) {
+		if((n = write(sockfd, msg_buffer, 1024)) < 0) {
 			perror("Couldn't write to socket");
 			return;
 		}
