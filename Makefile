@@ -1,4 +1,4 @@
-all: run_server
+all: run_server run_client
 
 CC = g++
 CFLAGS = -std=c++11

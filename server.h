@@ -15,16 +15,18 @@ public:
   Server();
   void Setup(std::string file_name);
   int Scan();
-  void GetInitialRequest(); // reads from client!
-  void GetChatroomRequest();
-  void DealWithClient();
+	void GetFromClient();
+  //void GetInitialRequest(int newsockfd); // reads from client!
+  //void GetChatroomRequest(int newsockfd);
+	void ErrorCode(unsigned char code);
+  void DealWithClient(int newsockfd);
   static void *RequestChatroom(int pipefds[], int chatfds[], int clientsocket, char *read_chat_msg); // read from pipe for chatroom
   bool Login(std::string client_ID, std::string password);
   bool Register(std::string client_ID, std::string password);
   void Disconnect();
 private:
   int sockfd; // socket for scanning port
-  int newsockfd; // socket for each new port
+  int client_socket; // socket for each new port
   int portno; 
   int client_length; // length of client socket address
   int pid; // main pid
@@ -43,7 +45,8 @@ private:
   std::vector<string> s;
   File file;
   ClientInfo client;
-	int counter = 0;
+	size_t msg_size = 1024;
+	
 };
 
 #endif // SERVER_H_

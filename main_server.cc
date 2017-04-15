@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
 	vector<pthread_t> threads;
 	//pthread_t threads[100];
 	int num_thread = 0; 
-	vector<int> newsockfds;
+	vector<int> newsockfds; // don't really need it but for keeping track of all used...
 	//int newsockfds[100];
 	int num_sockfds = 0;
  while(1) {

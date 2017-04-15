@@ -81,16 +81,3 @@ bool File::WriteFile(string client_ID, string password) {
   }
   return 1;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
