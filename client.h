@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <signal.h>
 
 class Client {
 public:
@@ -22,6 +23,7 @@ public:
   void Chat();
 	unsigned char ReadErrorCode();
 private:
+	sigset_t sig;
 	int sockfd;
 	int portno;
 	int n;

@@ -15,11 +15,19 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <vector>
+#include <signal.h>
 
 using namespace std;
 
 Client::Client() {
-
+	if(sigemptyset(&sig) == -1 ||
+		sigaddset(&sig, SIGINT) == -1 ||
+		sigaddset(&sig, SIGQUIT) == -1) {
+		perror("Failed to set up signal mask");
+	}
+	if(sigprocmask(SIG_BLOCK, &sig, NULL) == -1) {
+		perror("Failed to block signals");
+	}
 }
 
 void Client::Setup() {
@@ -43,6 +51,7 @@ unsigned char Client::ReadErrorCode() {
 		perror("Couldn't receive error code from server");
 		return 0xfe;
 	}
+	
 	fprintf(stderr, "Server: 0x%x\n", error_code[0]);
 	return error_code[0];
 }
@@ -54,11 +63,11 @@ void *ReadMSGHandler(void *args) {
 	// when main thread exits, the entire process ends and this thread also ends
 	pthread_mutex_t printer = PTHREAD_MUTEX_INITIALIZER;
 	while(1) {
-		cout << "Reading from server" << endl;		
+		pthread_mutex_lock(&printer);	
 		if((bytes_read = read(temp_socket, read_buffer, 1024)) < 0) {
 			perror("Couldn't read message from Chatroom");
 		}
-		pthread_mutex_lock(&printer);
+		
 		fprintf(stderr, "%s\n", read_buffer); // Instantly flush message out
 		pthread_mutex_unlock(&printer);
 	}
@@ -91,7 +100,6 @@ void Client::Chat() {
 		if(strncmp("DISCONNECT", write_buffer, 10) == 0) {
 			// Disconnecting user, no error codes!
 			close(sockfd);
-			cout << "Closed socket" << endl;
 			return;
 		}
 		else {
@@ -117,30 +125,32 @@ void Client::Chat() {
 
 // CREATE THREAD
 	int error;
-	pthread_t thread;
-	while(error = pthread_create(&thread, NULL, ReadMSGHandler, &sockfd)) {
-		perror("Re-attempting to create thread for message handling");
-	}
 
 	char msg_buffer[1024];
 	pthread_mutex_t command_lock = PTHREAD_MUTEX_INITIALIZER;
-
+	pthread_t thread;
 	while(1) {
 
-		// LOCK
-		if(error = pthread_mutex_lock(&command_lock)) {
-			perror("Error locking mutex");
-			continue;
+		
+		while(error = pthread_create(&thread, NULL, ReadMSGHandler, &sockfd)) {
+			perror("Re-attempting to create thread for message handling");
 		}
+		
 
 		fgets(msg_buffer, 1024, stdin); // reads the line including
-
+		
 	// Now get rid of ending new line character
 		size_t ln = strlen(msg_buffer) - 1;
 		if( msg_buffer[ln] == '\n') {
 			msg_buffer[ln] = '\0';
 		}
 
+		pthread_cancel(thread);
+// LOCK
+		if(error = pthread_mutex_lock(&command_lock)) {
+			perror("Error locking mutex");
+			continue;
+		}
 
 // WRITE
 		if((n = write(sockfd, msg_buffer, 1024)) < 0) {
@@ -156,9 +166,6 @@ void Client::Chat() {
 // READ
 		else {
 			ReadErrorCode();
-			if(error_code == 0) {
-				break;
-			}
 		}
 // UNLOCK		
 		if(error = pthread_mutex_unlock(&command_lock)) {

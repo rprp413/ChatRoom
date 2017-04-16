@@ -19,7 +19,6 @@ Chatroom Server::chatroom;
 // C-style multi-threading
 
 void *Server::CloseSocket(thread arg_thread, int arg_socket) {
-	cout << "Thread Created" << endl;
 	arg_thread.join();  // blocks until thread finishes!
 	close(arg_socket);
 	cout << "Closing sockets!" << endl;
@@ -60,10 +59,8 @@ int Server::Scan() {
 	        perror("ERROR on accept");
 	        exit(EXIT_FAILURE);
 	  }
-	  cout << "Client connected!" << endl;
 	  //thread client_thread(Server::DealWithClient, current_sock_fd);
 		//thread closing_thread(Server::CloseSocket, client_thread, current_sock_fd);
-		cout << "Created thread, in parent " << endl;
 		// this vector pushback way of making threads prevents copy constructors with threads!
 		threads.push_back(thread(Server::CloseSocket, thread(Server::DealWithClient, current_sock_fd), current_sock_fd));
 	}
@@ -74,23 +71,12 @@ int Server::Scan() {
   return 1;
 }
 
-// This guy gets a message, and writes it to one
-void* Server::RequestChatroom(int clientsocket, char *read_chat_msg) {
-	cout << "In thread!" << endl;
-  while(1) {
-    //read(pipefds[0], read_chat_msg, 1024);
-   // write(clientsocket, read_chat_msg, 1024);
-  }
-  return nullptr;
-}
-
-
 // Returns 0 if login not possible!
 bool Server::Login(string client_ID, string password) {
   file.SetFileName("accounts.dat");
   file.OpenIn();
   if(file.ReadFile(client_ID, password)) {
-    cout << "Login Successful" << endl; // make this some sort of wrtie to socket!
+    cout << client_ID << " login successful" << endl; // make this some sort of wrtie to socket!
     file.CloseFile();
     return 1;
   }
@@ -176,7 +162,6 @@ void *Server::DealWithClient(int newsockfd) {
 	vector<string> s;
 	int bytes;
 	size_t msg_size = 1024;
-	size_t chat_size = 10240;
 
   char login = 0;
   char reg = 0;
@@ -235,22 +220,6 @@ void *Server::DealWithClient(int newsockfd) {
 		}
   }
 
-
-  //thread tid(Server::RequestChatroom, newsockfd, readchatmsg);
-  
-/*
-  int error;
-  pthread_t tid;
-  if(error = pthread_create(&tid, NULL, RequestChatroom, NULL)) {
-    perror("ERROR on creating a thread");
-    return;
-  }
-  if(error = pthread_join(tid, NULL)) {
-    perror("ERROR on joining thread");
-    return;
-  }
-  */
-
 	// something must in client for this write to synchronize
 	char write_msg2[512] = "Please respond with one of the following choices:\n 1) MSG <content>\n 2) CLIST\n 3) DISCONNECT\n\0";
 	if((bytes = write(newsockfd, write_msg2, 512)) < 0) {
@@ -260,13 +229,12 @@ void *Server::DealWithClient(int newsockfd) {
 
 	// Create a mutex for the Chatroom being locked!	
 	mutex chatroom_mutex;
-	cout << "Before locking" << endl;
+
 	chatroom_mutex.lock();
-	cout << "Locked" << endl;
+
 	Server::chatroom.CheckClient(client.client_ID, client.password, newsockfd);
-	cout << "After client check" << endl;
+
 	chatroom_mutex.unlock();
-	cout << "After unlocking" << endl;
 
 	char chat_msg[msg_size];
 
@@ -285,41 +253,32 @@ void *Server::DealWithClient(int newsockfd) {
 				last--;
 			}
 			strncpy(chat_msg, send_string.c_str(), msg_size);
-			cout << send_string << endl;
 			chatroom_mutex.lock();
 			temp_server.ErrorCode(0);
 			chatroom_mutex.unlock();
-
+			
 			chatroom_mutex.lock();
 			Server::chatroom.Distribute(chat_msg, msg_size);
-			cout << "distributed!" << endl;
 			chatroom_mutex.unlock();
 			
     }
-    if(*(s.begin()) == "CLIST" && s.size() == 1) {
-
-			chatroom_mutex.lock();
-			Server::chatroom.ReturnList(newsockfd, chat_size);
-			chatroom_mutex.unlock();
+    else if(*(s.begin()) == "CLIST" && s.size() == 1) {
 			temp_server.ErrorCode(0);
-      //char temp[chat_size];
-      //strcpy(temp, client.client_ID.c_str());
-      //strcat(temp, client.password.c_str());
-     // write(chatfd[1], temp, chat_size);
-      //write(chatfd[1], msg, chat_size); // request from chatroom a list of clients
-     // read(pipefd[0], readchatmsg, 10000); // receive from chatroom a list of clients
-      //write(newsockfd, readchatmsg, 10000); // write to client
+			chatroom_mutex.lock();
+			Server::chatroom.ReturnList(newsockfd, msg_size);
+			chatroom_mutex.unlock();
+			
     }
-    if(*(s.begin()) == "DISCONNECT") {
+    else if(*(s.begin()) == "DISCONNECT") {
+			chatroom_mutex.lock();
 			Server::chatroom.DeleteClient(client.client_ID);
+			chatroom_mutex.unlock();
       temp_server.Disconnect();
 			return nullptr;
     }
+		else {
+			temp_server.ErrorCode(0xFF);
+		}
     
   }
-/*
-  if(tid.joinable()) {
-    tid.join();
-  }
-*/
 }

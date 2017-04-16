@@ -14,7 +14,7 @@ public:
   void ReturnList(int client_socket, size_t chat_list_size);
   void DeleteClient(string client_ID);
 	void Receive(char *recvmsg, int recvmsg_length, int pipefd[], int chatfd[]);
-	void Distribute(const char sending_msg[], size_t msg_size);
+	void Distribute(char sending_msg[], size_t msg_size);
 private:
 	char *msg;
   char *readmsg;

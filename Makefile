@@ -30,7 +30,7 @@ server.o: server.cc server.h
 	$(CC) $(CFLAGS) -pthread -c -o server.o server.cc
 
 clean:
-	rm run_server
+	rm -f run_server run_client
 
 superclean:
-	rm *.o run_server
+	rm -f *.o run_server run_client
