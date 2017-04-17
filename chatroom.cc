@@ -49,7 +49,7 @@ void Chatroom::ReturnList(int client_socket, size_t chat_list_size) {
   for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
     strcat(clist, ((*iter).client_ID + " ").c_str());
   }
-	fprintf(stderr, "In chatoom: %s\n",clist);
+//	fprintf(stderr, "In chatoom: %s\n",clist);
   write(client_socket, clist, chat_list_size);
 }
 
@@ -79,10 +79,9 @@ void Chatroom::Receive(char *recvmsg, int recvmsg_length, int pipefd[], int chat
 
 
 void Chatroom::Distribute(char sending_msg[], size_t msg_size) {
-	fprintf(stderr, "%s\n", sending_msg);
+//	fprintf(stderr, "%s\n", sending_msg);
 	
   for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
     write((*iter).socket, sending_msg, msg_size);
-    //read(chatfd[0], readmsg, 256);
   }
 }
