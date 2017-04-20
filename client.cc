@@ -42,48 +42,47 @@ void *Scan(void *arg) {
 	int bytes;
 	while(1) {
 		int current_sock_fd;
+		cout << "Scanning for input from other client..." << endl;
 		if((current_sock_fd = accept(serversocket, 
 				  (struct sockaddr *) &client_addr, (socklen_t *) &client_length)) < 0) {
 				    perror("ERROR on accept");
 				    exit(EXIT_FAILURE);
 		}
+		cout << "Accepted client!" << endl;
 		// Read in file name!
 		if((bytes = read(current_sock_fd, file_name, 128)) < 0) {
 			perror("Couldn't read filename");
 			exit(EXIT_FAILURE);
 		}
-		char *file_buffer;
+		
 		FILE *fp = fopen(file_name, "rb");
 		fseek(fp, 0L, SEEK_END);
 		int sz = ftell(fp);
 		fseek(fp, 0L, SEEK_SET);
-		int32_t conv = htonl(sz);
-		char *size_of_file = (char *) &htonl;
+		char size_of_file[16];
+		sprintf(size_of_file, "%d", sz);
+		cout << "File size: " << sz << " in string: " << size_of_file << endl;
 		// Send the file size!
-		if((bytes = write(current_sock_fd, size_of_file, sizeof(int))) < 0) {
+		if((bytes = write(current_sock_fd, size_of_file, 16)) < 0) {
 			perror("Couldn't send file size back!");
 			exit(EXIT_FAILURE);
 		}
 		// Allocate buffer for file
-		file_buffer = (char*) malloc(sizeof(char)*sz);
+		char file_buffer[sz];
 		// Read file into buffer
-		if((bytes = fread(file_buffer, 1, sizeof(file_buffer), fp)) < 0) {
+		if((bytes = fread(file_buffer, sizeof(char), sz, fp)) < 0) {
 			perror("Error loading file into memory buffer");
 			exit(EXIT_FAILURE);
 		}
+		cout << "Bytes FREAD " << bytes << endl;
 		// Write buffer to client
 		int bytes_written = 0;
 		char *buffer_ptr = file_buffer;
-		while(bytes > 0) {
-			if((bytes_written = write(current_sock_fd, file_buffer, BUFSIZE)) < 0) {
-				perror("Error sending file bytes over socket");
-				exit(EXIT_FAILURE);
-			}
-			file_buffer += bytes_written;
-			bytes -= bytes_written;
+		if((bytes_written = write(current_sock_fd, buffer_ptr, sz)) < 0) {
+			perror("Error sending file bytes over socket");
+			exit(EXIT_FAILURE);
 		}
-		file_buffer = buffer_ptr;
-		free(file_buffer);
+		cout << "Bytes remaining: " << bytes_written << endl;
 		fclose(fp);
 		close(current_sock_fd);
 	} 	// END WHILE
@@ -273,67 +272,79 @@ void Client::Chat() {
 					fprintf(stderr, "%s\n", read_buffer); // Instantly flush message out
 					char temp_ip[1024];
 					int chars_read;
-					char space[] = " ";
+					char space[] = {' '};
+					cout << space;
 					for(chars_read = 0; chars_read < 1024; chars_read++) {
-						if(strcmp(read_buffer + chars_read, space) == 0) {
+						if(read_buffer[chars_read] == ' ') {
 							break;
 						}
 						temp_ip[chars_read] = read_buffer[chars_read];
+						cout << temp_ip[chars_read];
 					}
+					cout << endl;
 					char temp_port[1024];
-					char nullterm[] = "\0";
-					for(chars_read + 1; chars_read < 1024; chars_read++) {
-						if(strcmp(read_buffer + chars_read, nullterm) == 0) {
+					char nullterm[] = {'\0'};
+					int iter = 0;
+					for(chars_read = chars_read + 1; chars_read < 1024; chars_read++) {
+						if(read_buffer[chars_read] == '\0') {
 							break;
 						}
-						temp_port[chars_read] = read_buffer[chars_read];
+						
+						temp_port[iter] = read_buffer[chars_read];
+						cout << temp_port[iter];
+						iter++;
 					}
+					cout << endl;
 					struct sockaddr_in temp_addr;
 					int temp_sock;
 					if((temp_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
    					perror("Socket error");
     				exit(EXIT_FAILURE);
   				}
-					int conv_ip_address = ntohl(atoi(temp_ip)); // Don't need?
-					int conv_port = ntohl(atoi(temp_port));
+					int conv_ip_address = (atoi(temp_ip)); // Don't need?
+					int conv_port = htons(atoi(temp_port));
   				temp_addr.sin_family = AF_INET;
   				temp_addr.sin_port = htons(conv_port);
-  				temp_addr.sin_addr.s_addr = inet_addr(temp_ip);
-
+  				//temp_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+					inet_pton(AF_INET, temp_ip, &(temp_addr.sin_addr));
+					cout << "About to connect to ip: " << temp_ip << endl << "Port number: " << atoi(temp_port) << endl;
 					if(connect(temp_sock, (struct sockaddr *) &temp_addr, sizeof(temp_addr)) < 0) {
 						perror("Connect error");
 						exit(EXIT_FAILURE);
-					} 
+					}
+					cout << "Connected to other client" << endl;
 					if((n = write(temp_sock, msg_buffer + 5, 128))  < 0) {
 						perror("Couldn't write filename to other client");
 						return;
 					}
+					cout << "Wrote file name to other client" << endl;
 					int file_size;
 					char size_reader[4];
-					if((n = read(temp_sock, size_reader, sizeof(int))) < 0) {
+					if((n = read(temp_sock, size_reader, 16)) < 0) {
 						perror("Couldn't read file size from other client");
 						return;
 					}
-					file_size = ntohl(atoi(size_reader));
-					char *file_buffer = (char *) malloc(sizeof(char)*file_size);
+					sscanf(size_reader, "%d", &file_size);
+					file_size = atoi(size_reader);
+					cout << "Read size of file: " << size_reader << endl;
+					char file_buffer[file_size];
 					char *buffer_ptr = file_buffer;
 					bytes_read = 0;
-					while(file_size > 0) {
-						if((bytes_read = read(temp_sock, file_buffer, BUFSIZE)) < 0) {
+					int total_bytes = 0;
+					int left_size = file_size;
+
+					if((bytes_read = read(temp_sock, buffer_ptr, file_size)) < 0) {
 							perror("Couldn't read from client");
 							return;
 						}
-						file_size -= bytes_read;
-						file_buffer += bytes_read;
-					}
-					file_buffer = buffer_ptr;
+					cout << "File buffer filled!" << endl;
 					char file_name[128];
 					strncpy(file_name, msg_buffer + 5, 128);
 					FILE *fp = fopen(file_name, "ab");
-					fwrite(buffer_ptr, 1, sizeof(file_buffer), fp);
+					fwrite(file_buffer, 1, file_size, fp);
+					cout << "Written to file!" << endl;
 					fclose(fp);
 					close(temp_sock);
-					free(file_buffer);
 				}
 			}
 		}

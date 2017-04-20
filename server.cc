@@ -311,7 +311,7 @@ void *Server::DealWithClient(int newsockfd) {
 			}
 			temp_server.ErrorCode(0);
 			chatroom_mutex.lock();
-			Server::chatroom.GetFile(*(s.begin()), newsockfd, msg_size);
+			Server::chatroom.GetFile(*(s.begin() + 1), newsockfd, msg_size);
 			chatroom_mutex.unlock();
 		}
 		else if(*(s.begin()) == "FLIST") {
@@ -328,6 +328,7 @@ void *Server::DealWithClient(int newsockfd) {
     else if(*(s.begin()) == "DISCONNECT") {
 			chatroom_mutex.lock();
 			Server::chatroom.DeleteClient(client.client_ID);
+			// HAVE TO DELETE CORRESPONDING FILES!!!!
 			chatroom_mutex.unlock();
       temp_server.Disconnect();
 			return nullptr;
