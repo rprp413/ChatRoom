@@ -27,6 +27,7 @@ void Chatroom::GetFile(string file_name, int client_socket, size_t msg_size) {
 				int temp_port = (*iter).port;
 				strcat(send_msg, (*iter).ip_address);
 				strcat(send_msg, (" " + to_string(temp_port) + "\0").c_str());
+				cout << "Sending file data: " << send_msg << endl;
 				write(client_socket, send_msg, msg_size);
 				return;
 			}
