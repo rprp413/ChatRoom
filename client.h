@@ -24,11 +24,15 @@ public:
 	unsigned char ReadErrorCode();
 private:
 	sigset_t sig;
-	int sockfd;
+	int clientsockfd;
+	int serversockfd;
 	int portno;
+	int serverportno;
+	uint32_t ip_address;
 	int n;
 	unsigned char error_code[1];
 	struct sockaddr_in server_addr;
+	struct sockaddr_in client_addr;
 	struct hostent *server;
 };
 

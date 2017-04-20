@@ -12,6 +12,7 @@
 #include <vector>
 #include <pthread.h>
 #include <mutex>
+#include <arpa/inet.h>
 
 using namespace std;
 
@@ -53,6 +54,7 @@ int Server::Scan() {
 	while(1) {
 	  // accept is blocking, unless socket [sockfd] is marked as unblocking
 	  // in which case you need to check for EAGAIN error code!
+		client_length = sizeof(client_addr);
 		int current_sock_fd;
 	  if((current_sock_fd = accept(sockfd,
 	      (struct sockaddr *) &client_addr, (socklen_t *) &client_length)) < 0) {
@@ -221,7 +223,7 @@ void *Server::DealWithClient(int newsockfd) {
   }
 
 	// something must in client for this write to synchronize
-	char write_msg2[512] = "Please respond with one of the following choices:\n 1) MSG <content>\n 2) CLIST\n 3) DISCONNECT\n\0";
+	char write_msg2[512] = "Please respond with one of the following choices:\n 1) MSG <content>\n 2) CLIST\n 3) FLIST\n 4) FPUT <filename, IP_Address, port>\n 5) FGET <file_ID>\n 6) DISCONNECT\n\0";
 	if((bytes = write(newsockfd, write_msg2, 512)) < 0) {
   	perror("Couldn't write to socket");
     return nullptr;
@@ -262,13 +264,67 @@ void *Server::DealWithClient(int newsockfd) {
 			chatroom_mutex.unlock();
 			
     }
-    else if(*(s.begin()) == "CLIST" && s.size() == 1) {
+    else if(*(s.begin()) == "CLIST") {
+			if(s.size() != 1) {
+				temp_server.ErrorCode(0xFF);
+				cout << "Invalid Format" << endl;
+				continue;
+			}
 			temp_server.ErrorCode(0);
 			chatroom_mutex.lock();
-			Server::chatroom.ReturnList(newsockfd, msg_size);
+			Server::chatroom.ReturnClientList(newsockfd, msg_size);
 			chatroom_mutex.unlock();
-			
     }
+		else if(*(s.begin()) == "FPUT") {
+			if(s.size() != 4) {
+				temp_server.ErrorCode(0xFF);
+				cout << "Invalid Format" << endl;
+				continue;
+			}
+			string::size_type sz;
+			int temp_port = stoi(*(s.begin() + 3), &sz);
+			struct sockaddr_in sa;
+			int temp_ip_address = inet_pton(AF_INET, (*(s.begin() + 2)).c_str(), &(sa.sin_addr));
+			if(temp_ip_address <= 0 || temp_port < 1024 || temp_port > 65535) {
+				temp_server.ErrorCode(0x04);
+				cout << "Invalid IP address and/or port" << endl;
+				continue;
+			}
+			temp_server.ErrorCode(0);
+			chatroom_mutex.lock();
+			Server::chatroom.AddFile(*(s.begin() + 1), temp_port, (*(s.begin() + 2)).c_str());
+			chatroom_mutex.unlock();
+		}
+		else if(*(s.begin()) == "FGET") {
+			if(s.size() != 2) {
+				temp_server.ErrorCode(0xFF);
+				cout << "Invalid Format" << endl;
+				continue;
+			}
+			chatroom_mutex.lock();
+			int check = Server::chatroom.CheckFile(*(s.begin() + 1));
+			chatroom_mutex.unlock();
+			if(check == 0) {
+				temp_server.ErrorCode(0x03);
+				cout << "Invalid file_ID" << endl;
+				continue;
+			}
+			temp_server.ErrorCode(0);
+			chatroom_mutex.lock();
+			Server::chatroom.GetFile(*(s.begin()), newsockfd, msg_size);
+			chatroom_mutex.unlock();
+		}
+		else if(*(s.begin()) == "FLIST") {
+			if(s.size() != 1) {
+				temp_server.ErrorCode(0xFF);
+				cout << "Invalid Format" << endl;
+				continue;
+			}
+			temp_server.ErrorCode(0);
+			chatroom_mutex.lock();
+			Server::chatroom.ReturnFileList(newsockfd, msg_size);
+			chatroom_mutex.unlock();
+		}
     else if(*(s.begin()) == "DISCONNECT") {
 			chatroom_mutex.lock();
 			Server::chatroom.DeleteClient(client.client_ID);

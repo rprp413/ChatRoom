@@ -18,4 +18,10 @@ struct ClientInfo {
 	int socket;
 };
 
+struct FileData {
+	string file_name;
+	int port;
+	char *ip_address;
+};
+
 #endif // CODES_H_
