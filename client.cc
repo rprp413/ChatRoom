@@ -277,7 +277,6 @@ void Client::Chat() {
 					if((bytes_read = read(clientsockfd, read_buffer, 1024)) < 0) {
 						perror("Couldn't read message from Chatroom");
 					}
-					fprintf(stderr, "%s\n", read_buffer); // Instantly flush message out
 					char temp_ip[1024];
 					int chars_read;
 // Split the Ip address from the port number in these two for loops
