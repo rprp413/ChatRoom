@@ -13,6 +13,7 @@ void File::SetFileName(string file_name) {
   fileName = file_name;
 }
 
+// "OpenIn" means open for input
 bool File::OpenIn(void) {
   inFile.open(fileName.c_str(), ios::app);
   if(inFile.is_open()) {
@@ -23,6 +24,7 @@ bool File::OpenIn(void) {
   }
 }
 
+// "OpenOut" means open for output
 bool File::OpenOut(void) {
   outFile.open(fileName.c_str(), ios::app | ios::ate);
   if(outFile.is_open()) {
@@ -42,42 +44,41 @@ void File::CloseFile(void) {
   }
 }
 
+// Checks if user is in the list of possible accounts
+// Used for Registering and checking if account already exists
+// AKA "client_ID already taken" or "duplicate client_ID"
+// returning a 0 should result in a 0x02 error code
 bool File::CheckID(string client_ID) {
   string temp_client_ID, temp_password;
-  
   while(inFile >> temp_client_ID >> temp_password) {
-    cout << temp_client_ID << " " << temp_password << endl;
     if((temp_client_ID == client_ID)) {
-      // cout << "ID Exists" << endl;
       return 1;
     }
   }
   return 0; // ID DNE
 }
 
-bool File::ReadFile(string client_ID, string password) { // AKA CheckPassword!
+// Checks client_ID and password, used for logging in
+// A return 0 correlates to an error code of 0x01
+// That is an invalid client_ID and/or password
+bool File::ReadFile(string client_ID, string password) {
   string temp_client_ID, temp_password;
-	cout << "input is: " << client_ID << " " << password << endl;
   while(inFile >> temp_client_ID >> temp_password) {
-    // cout << temp_client_ID << " " << temp_password << endl;
     if((temp_client_ID == client_ID) && (temp_password == password)) {
-      cout << "Login Successful!" << endl;
       return 1;
     }
   }
-  // cout << "Login Unsuccessful! Wrong ID and/or password!" << endl;
   return 0;
 }
 
+// Used for Registration purposes where you want to add an account
 bool File::WriteFile(string client_ID, string password) {
   string temp_client_ID, temp_password;
   if(ReadFile(client_ID, password) == 1) {
-    //cout << "Account already exists, Logging in!" << endl;
     return 0;
   }
   else {
     outFile << client_ID << " " << password << endl;
-    //cout << "Account newly created!" << endl;
   }
   return 1;
 }

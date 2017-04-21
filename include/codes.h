@@ -5,19 +5,16 @@
 
 using std::string;
 
-struct Error {
-	char code;
-	string description;
-};
-
-//string Command[5] = {"MSG", "REGISTER", "LOGIN", "DISCONNECT", "CLIST"};
-
+// Information regarding each new client
+// This is managed by the Chatroom object
 struct ClientInfo {
   string client_ID;
   string password;
 	int socket;
 };
 
+// Information regarding each new file
+// This is managed by the Chatroom object
 struct FileData {
 	string file_name;
 	int port;

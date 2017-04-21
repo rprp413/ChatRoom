@@ -1,7 +1,8 @@
 # ChatRoom
-C++ Chatroom based on server-client model
+C/C++ Chatroom based on server-client model
+Code must be compiled with -std=c++11 option
+Not complete Object Oriented or pure C++ code
 
-Server side of chatroom program.
-Runs but client code not completed.
-Will upload client code when done.
 Current project progress may be viewed at: https://github.com/Rouvem/ChatRoom
+
+

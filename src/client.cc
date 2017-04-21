@@ -1,7 +1,6 @@
 #include "client.h"
 #include "file.h"
 #include "codes.h"
-#include "chatroom.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -38,9 +37,10 @@ void *Scan(void *arg) {
 	int serversocket = *(int *)arg;
 	struct sockaddr_in client_addr;
 	size_t client_length = sizeof(client_addr);
-	char file_name[128];
+	
 	int bytes;
 	while(1) {
+		char file_name[128];
 		int current_sock_fd;
 		cout << "Scanning for input from other client..." << endl;
 		if((current_sock_fd = accept(serversocket, 
@@ -54,11 +54,13 @@ void *Scan(void *arg) {
 			perror("Couldn't read filename");
 			exit(EXIT_FAILURE);
 		}
-		
+		cout << "Read in file name" << endl;
 		FILE *fp = fopen(file_name, "rb");
+		cout << "Opened file " << file_name << endl;
 		fseek(fp, 0L, SEEK_END);
 		int sz = ftell(fp);
 		fseek(fp, 0L, SEEK_SET);
+		cout << "Done with seeking" << endl;
 		char size_of_file[16];
 		sprintf(size_of_file, "%d", sz);
 		cout << "File size: " << sz << " in string: " << size_of_file << endl;
@@ -319,7 +321,7 @@ void Client::Chat() {
 					}
 					cout << "Wrote file name to other client" << endl;
 					int file_size;
-					char size_reader[4];
+					char size_reader[16];
 					if((n = read(temp_sock, size_reader, 16)) < 0) {
 						perror("Couldn't read file size from other client");
 						return;
@@ -340,7 +342,7 @@ void Client::Chat() {
 					cout << "File buffer filled!" << endl;
 					char file_name[128];
 					strncpy(file_name, msg_buffer + 5, 128);
-					FILE *fp = fopen(file_name, "ab");
+					FILE *fp = fopen(file_name, "wb");
 					fwrite(file_buffer, 1, file_size, fp);
 					cout << "Written to file!" << endl;
 					fclose(fp);
