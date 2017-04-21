@@ -1,35 +1,36 @@
+all: server client
+
 CC = g++
-CFLAGS = -std=c++11 -Wall -lpthread -pthread #is compiler flags
-CCFLAGS = -Iinclude # -I is a preprocessor flag, not a compiler flag
-SRC_DIR = src
-INC_DIR = include
-OBJ_DIR = obj
-BIN_DIR = bin
-SERSRC = src/server.cc src/chatroom.cc src/file.cc
-CLISRC = src/client.cc src/file.cc
-INC = $(wildcard $(INC_DIR)/*.h)
-SEROBJ = $(SERSRC:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
-CLIOBJ = $(CLISRC:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
-EXE = bin/server bin/client
-all: $(EXE)
+CFLAGS = -std=c++11
 
-bin/server: src/run_server.cc $(SEROBJ) | bin
-	$(CC) $(CFLAGS) $(CCFLAGS) $^ -o $@
+main: main_server main_client
 
-bin/client: src/run_client.cc $(CLIOBJ) | bin
-	$(CC) $(CFLAGS) $(CCFLAGS) $^ -o $@
+main_server: main_server.cc
+	$(CC) $(CFLAGS) -o ser main_server.cc -pthread
 
-obj/%.o: src/%.cc include/%.h include/codes.h | obj
-	$(CC) $(CCFLAGS) $(CFLAGS) -c $< -o $@
+main_client: main_client.cc
+	$(CC) $(CFLAGS) -o cli main_client.cc -pthread
 
-obj/%.o: src/%.cc | obj
-	$(CC) $(CCFLAGS) $(CFLAGS) -c $< -o $@
+server: chatroom.o server.o file.o run_server.cc
+	$(CC) $(CFLAGS) -pthread -o server run_server.cc server.o chatroom.o file.o
 
-bin obj:
-	mkdir -p $@
+client: client.o run_client.cc
+	$(CC) $(CFLAGS) -pthread -o client run_client.cc client.o 
+
+client.o: client.cc client.h
+	$(CC) $(CFLAGS) -pthread -c -o client.o client.cc 
+
+chatroom.o: chatroom.cc chatroom.h
+	$(CC) $(CFLAGS) -c -o chatroom.o chatroom.cc
+
+file.o: file.cc file.h
+	$(CC) $(CFLAGS) -c -o file.o file.cc
+
+server.o: server.cc server.h
+	$(CC) $(CFLAGS) -pthread -c -o server.o server.cc
 
 clean:
-	$(RM) -r $(EXE) bin
+	rm -f run_server run_client
 
 superclean:
-	$(RM) -r $(EXE) $(SEROBJ) bin obj
+	rm -f *.o run_server run_client

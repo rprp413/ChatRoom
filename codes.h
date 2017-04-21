@@ -1,6 +1,6 @@
 #ifndef CODES_H_
 #define CODES_H_
-
+// This header file does not have a corresponding implementation .cc file
 #include <string>
 
 using std::string;
@@ -17,6 +17,7 @@ struct ClientInfo {
 // This is managed by the Chatroom object
 struct FileData {
 	string file_name;
+	string client_ID;
 	int port;
 	char *ip_address;
 };

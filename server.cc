@@ -19,6 +19,9 @@ using namespace std;
 Chatroom Server::chatroom;
 // C-style multi-threading
 
+/* This thread joins existing threads, specifically a DealWithClient thread
+ * and closes the corresponding socket [or "newsockfd"]
+*/
 void *Server::CloseSocket(thread arg_thread, int arg_socket) {
 	arg_thread.join();  // blocks until thread finishes!
 	close(arg_socket);
@@ -28,6 +31,10 @@ void *Server::CloseSocket(thread arg_thread, int arg_socket) {
 
 Server::Server() {}
 
+/* Setting up the server port, note that the default port number is 1065
+ * step-by-step: socket(), assign portnum, AF_INET and ip address, bind(),
+ * listen(), and finally loop accept() for multiple clients [done in Scan()]
+*/
 void Server::Setup(string file_name) {
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("ERROR opening socket");
@@ -49,8 +56,13 @@ void Server::Setup(string file_name) {
   }
 }
 
+/* Loops through and connects to a client through accept.
+ * Each client connection gets a separate thread "DealWithClient" and 
+ * gets encapsulated within another. This in turn gets pushed back into
+ * a vector of threads, that gets joined at the end of Scan(), in case they don't 
+ * finish.
+*/
 int Server::Scan() {
-	
 	while(1) {
 	  // accept is blocking, unless socket [sockfd] is marked as unblocking
 	  // in which case you need to check for EAGAIN error code!
@@ -102,6 +114,9 @@ bool Server::Register(string client_ID, string password) {
   return 1;
 }
 
+/* All possible error codes shown. Has been made easy to extend if 
+ * the need arises to add more error codes.
+*/
 void Server::ErrorCode(unsigned char code) {
 	unsigned char send_code[6] = {0, 1, 2, 3, 4, 255};	
 	if( code == 0) {
@@ -139,6 +154,9 @@ void Server::ErrorCode(unsigned char code) {
 	}
 }
 
+/* This function uses the Server objects string "s" and adds to it
+ * the tokenized message (by space " "). msg_size is usually 1024.
+*/
 void Server::GetFromClient(vector<string> &s, size_t msg_size) {
 	char read_client_msg[msg_size];
   if((n = read(client_socket, read_client_msg, msg_size)) < 0) {
@@ -156,6 +174,17 @@ void Server::GetFromClient(vector<string> &s, size_t msg_size) {
 
 void Server::Disconnect() {}
 
+
+/* This is a thread. It has two parts:
+ * 1) Assist with logging in and/or registering a new client
+ * 2) Once logged in, manage requests
+ * - Each request from the client must have an error code written back
+ * immediately after the read from the client (except for "DISCONNECT")
+ * - The chatroom object is statically global, thus it MUST be mutex
+ * locked whenever you access it and unlocked immediately afterwards
+ * - The server in general may have several output printing for 
+ * confirmation of printing.
+*/
 void *Server::DealWithClient(int newsockfd) {
 	Server temp_server;
 	temp_server.client_socket = newsockfd;
@@ -246,23 +275,21 @@ void *Server::DealWithClient(int newsockfd) {
 		chatroom_mutex.unlock();
     if(*(s.begin()) == "MSG") {
 			string send_string = client.client_ID + ": ";
+			// Retokenize the strings with spaces!
 			for(int i = 1; i < s.size(); i++) {
 				send_string += s[i] + " ";
 			}
 			int last = s.size() - 1;
+			// Remove trailing white space for neatness
 			while (last > 0 && s[last] == " ") {
 				s.pop_back();
 				last--;
 			}
 			strncpy(chat_msg, send_string.c_str(), msg_size);
-			chatroom_mutex.lock();
 			temp_server.ErrorCode(0);
-			chatroom_mutex.unlock();
-			
 			chatroom_mutex.lock();
 			Server::chatroom.Distribute(chat_msg, msg_size);
 			chatroom_mutex.unlock();
-			
     }
     else if(*(s.begin()) == "CLIST") {
 			if(s.size() != 1) {
@@ -281,6 +308,7 @@ void *Server::DealWithClient(int newsockfd) {
 				cout << "Invalid Format" << endl;
 				continue;
 			}
+			// The following code reads and checks the port and ip address
 			string::size_type sz;
 			int temp_port = stoi(*(s.begin() + 3), &sz);
 			struct sockaddr_in sa;
@@ -292,7 +320,7 @@ void *Server::DealWithClient(int newsockfd) {
 			}
 			temp_server.ErrorCode(0);
 			chatroom_mutex.lock();
-			Server::chatroom.AddFile(*(s.begin() + 1), temp_port, (*(s.begin() + 2)).c_str());
+			Server::chatroom.AddFile(*(s.begin() + 1), temp_port, (*(s.begin() + 2)).c_str(), client.client_ID);
 			chatroom_mutex.unlock();
 		}
 		else if(*(s.begin()) == "FGET") {
@@ -327,8 +355,9 @@ void *Server::DealWithClient(int newsockfd) {
 		}
     else if(*(s.begin()) == "DISCONNECT") {
 			chatroom_mutex.lock();
+		// Delete the files first, then the client! VERY IMPORTANT!
+			Server::chatroom.DeleteFiles(client.client_ID);
 			Server::chatroom.DeleteClient(client.client_ID);
-			// HAVE TO DELETE CORRESPONDING FILES!!!!
 			chatroom_mutex.unlock();
       temp_server.Disconnect();
 			return nullptr;

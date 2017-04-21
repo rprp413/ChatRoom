@@ -37,13 +37,13 @@ void Chatroom::GetFile(string file_name, int client_socket, size_t msg_size) {
 	return;
 }
 
-int Chatroom::AddFile(string file_name, int port, const char *ip_address) {
+int Chatroom::AddFile(string file_name, int port, const char *ip_address, string client_ID) {
 	if(CheckFile(file_name)) {
 		return 0;
 	}
 	else {
 		char *temp_ip = (char *) ip_address;
-		FileData newFile = { file_name, port, temp_ip };
+		FileData newFile = {file_name,  client_ID, port, temp_ip};
 		files.push_back(newFile);
 		return 1;
 	}
@@ -62,17 +62,25 @@ int Chatroom::CheckFile(string file_name) {
 	return 0;
 }
 
-// Doesn't delete file from any system, simply removes availability of file from server
-void Chatroom::DeleteFile(string file_name) {
+// Doesn't delete files from any system, simply removes availability of files from server
+// Finds all files available by the client_ID, called upon Disconnect() before DeleteClient
+void Chatroom::DeleteFiles(string client_ID) {
 	if(files.size() != 0) {
 		for(vector<FileData>::iterator iter = files.begin(); iter != files.end(); iter++) {
-			if(file_name == (*iter).file_name) {
+			if(client_ID == (*iter).client_ID) {
+				cout << "Deleting " << (*iter).file_name << endl;
 				files.erase(iter);
-				return;
+				if(files.empty()) {
+					cout << "About to return" << endl;
+					return;
+				}
 			}
 		}
 	}
-}
+	cout << "About to return" << endl;
+	return;
+}		
+
 
 void Chatroom::ReturnFileList(int client_socket, size_t chat_list_size) {
 	char flist[chat_list_size];
@@ -83,6 +91,7 @@ void Chatroom::ReturnFileList(int client_socket, size_t chat_list_size) {
 }
 
 
+// "CheckClient" Simply means that the client is being added to the Chatroom officially
 int Chatroom::CheckClient(string client_ID, string password, int socket) {
  if(clients.size() != 0) {
 		for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
@@ -96,10 +105,11 @@ int Chatroom::CheckClient(string client_ID, string password, int socket) {
   return 0;
 }
 
+// Removes client from the Chatroom officially
 void Chatroom::DeleteClient(string client_ID) {
   if(clients.size() != 0) {
     for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
-      if( (*iter).client_ID == client_ID) {
+      if((*iter).client_ID == client_ID) {
         clients.erase(iter);
         return;
       }
@@ -115,6 +125,7 @@ void Chatroom::ReturnClientList(int client_socket, size_t chat_list_size) {
   write(client_socket, clist, chat_list_size);
 }
 
+// Takes an inputted MSG text and distributes to everyone in the Chatroom including the sender
 void Chatroom::Distribute(char sending_msg[], size_t msg_size) {
 	for(vector<ClientInfo>::iterator iter = clients.begin(); iter != clients.end(); iter++) {
     write((*iter).socket, sending_msg, msg_size);

@@ -14,10 +14,10 @@ public:
   void ReturnClientList(int client_socket, size_t chat_list_size);
   void DeleteClient(string client_ID);
 	void Distribute(char sending_msg[], size_t msg_size);
-	int AddFile(string file_name, int port, const char *ip_address);
+	int AddFile(string file_name, int port, const char *ip_address, string client_ID);
 	int CheckFile(string file_name);
 	void GetFile(string file_name, int client_socket, size_t msg_size);
-	void DeleteFile(string file_name);
+	void DeleteFiles(string client_ID);
 	void ReturnFileList(int client_socket, size_t chat_list_size);
 private:
 	char *msg;
