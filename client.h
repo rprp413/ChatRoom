@@ -19,17 +19,19 @@
 class Client {
 public:
   Client();
-  void Setup();
+  void Setup(string a_ipAddress);
   void Chat();
 	unsigned char ReadErrorCode();
 private:
-	sigset_t sig;
-	int clientsockfd;
-	int serversockfd;
-	int portno;
-	int serverportno;
-	uint32_t ip_address;
-	int n;
+   void getIPv4Address();
+   string m_ipAddress;
+   sigset_t sig;
+	int m_clientSockFd;  ///< Socket FD for the client to connect to the server
+	int m_serverSockFd;  ///< The client's server side for FPUTting a file
+	int m_port;
+	int m_serverPort;
+	//uint32_t ip_address;
+	ssize_t n;
 	unsigned char error_code[1];
 	struct sockaddr_in server_addr;
 	struct sockaddr_in client_addr;

@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <vector>
 #include <signal.h>
+#include <ifaddrs.h>
 
 #define BUFSIZE 1024
 
@@ -34,6 +35,7 @@ Client::Client() {
 	if(sigprocmask(SIG_BLOCK, &sig, NULL) == -1) {
 		perror("Failed to block signals");
 	}
+   m_ipAddress = "";
 }
 
 /* "Server" thread of client that sends files requested
@@ -93,59 +95,93 @@ void *Scan(void *arg) {
 /* Setup sockets to 1) Server, 2) for other clients to connect to.
  *
 */
-void Client::Setup() {
+void Client::Setup(string a_ipAddress) {
 	// 1) Client portion for requests
-  portno = 1065; // port numbers 0-1023 are reserved
-  if((clientsockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  m_port = 1065; // port numbers 0-1023 are reserved
+  if((m_clientSockFd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("Socket error");
     exit(EXIT_FAILURE);
   }
   client_addr.sin_family = AF_INET;
-  client_addr.sin_port = htons(portno);
-  client_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  client_addr.sin_port = htons(m_port);
   
-  if(connect(clientsockfd, (struct sockaddr *) &client_addr, sizeof(client_addr)) < 0) {
+  // This is the address of the server:
+  client_addr.sin_addr.s_addr = inet_addr(a_ipAddress.c_str());
+  
+  if(connect(m_clientSockFd, (struct sockaddr *) &client_addr, sizeof(client_addr)) < 0) {
     perror("Connect error");
     exit(EXIT_FAILURE);
   }
 
+   getIPv4Address();
 
-	// 2) Server portion for file transfers
-	if((serversockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    perror("ERROR opening socket");
-    exit(EXIT_FAILURE);
-  }
+
+   // 2) Server portion for file transfers
+   if((m_serverSockFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+   {
+      perror("ERROR opening socket");
+      exit(EXIT_FAILURE);
+   }
 
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = 0;
-  server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  
-  if(bind(serversockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
+  server_addr.sin_addr.s_addr = inet_addr(m_ipAddress.c_str()); //htonl(INADDR_ANY);
+
+  if(bind(m_serverSockFd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
     perror("ERROR on binding");
     exit(EXIT_FAILURE);
   }
 
-  if(listen(serversockfd, 5) < 0) {
+  if(listen(m_serverSockFd, 5) < 0) {
     perror("ERROR on listening");
     exit(EXIT_FAILURE);
   }
 	pthread_t thread;
 	int error;
-	while(error = pthread_create(&thread, NULL, Scan, &serversockfd)) {
+	while(error = pthread_create(&thread, NULL, Scan, &m_serverSockFd)) {
 			perror("Re-attempting to create thread for file handling");
 	}
+
 // GATHER data for ip address and PORT number for the client to know once doing FPUT command
-	struct sockaddr_in sin;
-	socklen_t len = sizeof(sin);
-	getsockname(serversockfd, (struct sockaddr *)&sin, &len);
-	serverportno = sin.sin_port;
-	ip_address = sin.sin_addr.s_addr;
-	cout << "IP Address: " << sin.sin_addr.s_addr << endl << "Port Number: " << sin.sin_port << endl;
-	Chat();
+
+
+
+   struct sockaddr_in sin;
+   socklen_t len = sizeof(sin);
+   getsockname(m_serverSockFd, (struct sockaddr *)&sin, &len);
+   m_serverPort = sin.sin_port;
+   //ip_address = sin.sin_addr.s_addr;
+   cout << "IP Address: " << m_ipAddress /*sin.sin_addr.s_addr*/ << endl << "Port Number: " << sin.sin_port << endl;
+   Chat();
+}
+
+void Client::getIPv4Address()
+{
+   struct ifaddrs *interfaces = nullptr;
+   struct ifaddrs *temp_addr = nullptr;
+   int retVal(0);
+
+   if( 0 == (retVal = getifaddrs(&interfaces)))
+   {
+      temp_addr = interfaces;
+      while(nullptr != temp_addr)
+      {
+         if( AF_INET == temp_addr->ifa_addr->sa_family ) // IPv4
+         {
+            // Check if interface is not localhost 0.0.0.0...
+            if( string(temp_addr->ifa_name) != "lo" )
+            {
+               m_ipAddress = inet_ntoa(((struct sockaddr_in*)temp_addr->ifa_addr)->sin_addr);
+            }
+         }
+         temp_addr = temp_addr->ifa_next;
+      }
+   }
+   freeifaddrs(interfaces);
 }
 
 unsigned char Client::ReadErrorCode() {
-	if((n = read(clientsockfd, error_code, 1)) < 0) {
+	if((n = read(m_clientSockFd, error_code, 1)) < 0) {
 		perror("Couldn't receive error code from server");
 		return 0xfe;
 	}
@@ -179,7 +215,7 @@ void *ReadMSGHandler(void *args) {
 */
 void Client::Chat() {
 	char read_buffer[512];
-	if((n = read(clientsockfd, read_buffer, 512)) < 0) {
+	if((n = read(m_clientSockFd, read_buffer, 512)) < 0) {
 		perror("Couldn't read from socket");
 		return;
 	}
@@ -196,13 +232,13 @@ void Client::Chat() {
 			write_buffer[ln] = '\0';
 		}
 // WRITE
-		if((n = write(clientsockfd, write_buffer, 512)) < 0) {
+		if((n = write(m_clientSockFd, write_buffer, 512)) < 0) {
 			perror("Couldn't write to socket");
 			return;
 		}
 		if(strncmp("DISCONNECT", write_buffer, 10) == 0) {
 			// Disconnecting user, no error codes!
-			close(clientsockfd);
+			close(m_clientSockFd);
 			return;
 		}
 		else {
@@ -218,7 +254,7 @@ void Client::Chat() {
 	// Now inside Chatroom! Have registered or logged in and can do commands!
 	// NOTE: SIMILAR TO PREVIOUS WHILE LOOP
 	// But first read what the Chatroom has to say to us!
-	if((n = read(clientsockfd, read_buffer, 512)) < 0) {
+	if((n = read(m_clientSockFd, read_buffer, 512)) < 0) {
 		perror("Couldn't read from socket");
 		return;
 	}
@@ -234,7 +270,7 @@ void Client::Chat() {
 	pthread_t thread;
 	while(1) {
 // CREATE THREAD
-		while(error = pthread_create(&thread, NULL, ReadMSGHandler, &clientsockfd)) {
+		while(error = pthread_create(&thread, NULL, ReadMSGHandler, &m_clientSockFd)) {
 			perror("Re-attempting to create thread for message handling");
 		}
 
@@ -256,13 +292,13 @@ void Client::Chat() {
 		}
 
 // WRITE
-		if((n = write(clientsockfd, msg_buffer, 1024)) < 0) {
+		if((n = write(m_clientSockFd, msg_buffer, 1024)) < 0) {
 			perror("Couldn't write to socket");
 			return;
 		}
 		if(strncmp("DISCONNECT", msg_buffer, 10) == 0) {
 			// Disconnecting user, no error codes!
-			close(clientsockfd);
+			close(m_clientSockFd);
 			cout << "Closed socket" << endl;
 			return;
 		}
@@ -274,7 +310,7 @@ void Client::Chat() {
 					char read_buffer[1024];
 					size_t bytes_read;
 // READ MSG, similar to ReadMSGHandler
-					if((bytes_read = read(clientsockfd, read_buffer, 1024)) < 0) {
+					if((bytes_read = read(m_clientSockFd, read_buffer, 1024)) < 0) {
 						perror("Couldn't read message from Chatroom");
 					}
 					char temp_ip[1024];
