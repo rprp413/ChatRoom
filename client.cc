@@ -82,7 +82,7 @@ void *Scan(void *arg) {
 // WRITE buffer to client
 		int bytes_written = 0;
 		char *buffer_ptr = file_buffer;
-		if((bytes_written = write(current_sock_fd, buffer_ptr, sz)) < 0) {
+		if((bytes_written = send(current_sock_fd, buffer_ptr, sz, 0)) < 0) {
 			perror("Error sending file bytes over socket");
 			exit(EXIT_FAILURE);
 		}
@@ -364,7 +364,7 @@ void Client::Chat() {
 					file_size = atoi(size_reader);
 // READ the file in
 					char file_buffer[file_size];
-					if((n = read(temp_sock, file_buffer, file_size)) < 0) {
+					if((n = recv(temp_sock, file_buffer, file_size, 0)) < 0) {
 							perror("Couldn't read from client");
 							return;
 					}
